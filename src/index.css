@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+* {
+  @apply border-slate-800;
+}
+
+a {
+  @apply text-sky-300 hover:text-sky-200;
+}
