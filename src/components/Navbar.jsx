@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LogIn, LogOut, Shield, User } from 'lucide-react'
+import { LogIn, LogOut, Shield, User, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 function cn(...classes) {
@@ -34,7 +34,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-slate-800/70 bg-slate-950/70 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3">
         <Link to="/" className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-rose-600 to-fuchsia-600 text-sm font-bold">
+          <div className="grid h-9 w-9 place-items-center rounded-xl school-gradient text-sm font-bold text-white">
             LF
           </div>
           <div className="leading-tight">
@@ -51,7 +51,7 @@ export default function Navbar() {
               placeholder="Search items (bottle, keys, bag...)"
               className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
             />
-            <button className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-900">
+            <button className="rounded-lg bg-school-red px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
               Search
             </button>
           </div>
@@ -64,8 +64,8 @@ export default function Navbar() {
               to={it.to}
               className={({ isActive }) =>
                 cn(
-                  'rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white',
-                  isActive && 'bg-slate-900 text-white',
+                  'rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white transition-colors',
+                  isActive && 'bg-school-blue text-white',
                 )
               }
             >
@@ -76,18 +76,32 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           {currentUser?.role === 'admin' ? (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                cn(
-                  'hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 md:flex',
-                  isActive && 'bg-slate-900',
-                )
-              }
-            >
-              <Shield className="h-4 w-4" />
-              Admin
-            </NavLink>
+            <>
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  cn(
+                    'hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 transition-colors md:flex',
+                    isActive && 'bg-school-blue border-school-blue text-white',
+                  )
+                }
+              >
+                <Shield className="h-4 w-4" />
+                Admin
+              </NavLink>
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  cn(
+                    'hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 transition-colors md:flex',
+                    isActive && 'bg-school-blue border-school-blue text-white',
+                  )
+                }
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </NavLink>
+            </>
           ) : null}
 
           {currentUser ? (
@@ -96,8 +110,8 @@ export default function Navbar() {
                 to="/profile"
                 className={({ isActive }) =>
                   cn(
-                    'hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 md:flex',
-                    isActive && 'bg-slate-900',
+                    'hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 transition-colors md:flex',
+                    isActive && 'bg-school-blue border-school-blue text-white',
                   )
                 }
               >
@@ -106,7 +120,7 @@ export default function Navbar() {
               </NavLink>
               <button
                 onClick={logout}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900"
+                className="inline-flex items-center gap-2 rounded-xl bg-school-red px-3 py-2 text-sm font-semibold text-white hover:bg-opacity-90 transition-all"
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -116,14 +130,14 @@ export default function Navbar() {
             <>
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 transition-colors"
               >
                 <LogIn className="h-4 w-4" />
                 Log in
               </Link>
               <Link
                 to="/signup"
-                className="hidden rounded-xl bg-gradient-to-r from-rose-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white md:inline-flex"
+                className="hidden rounded-xl school-gradient px-4 py-2 text-sm font-semibold text-white hover:scale-105 transition-transform md:inline-flex"
               >
                 Sign up
               </Link>
@@ -140,14 +154,40 @@ export default function Navbar() {
               to={it.to}
               className={({ isActive }) =>
                 cn(
-                  'whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white',
-                  isActive && 'bg-slate-900 text-white',
+                  'whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white transition-colors',
+                  isActive && 'bg-school-blue text-white',
                 )
               }
             >
               {it.label}
             </NavLink>
           ))}
+          {currentUser?.role === 'admin' && (
+            <>
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  cn(
+                    'whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white transition-colors',
+                    isActive && 'bg-school-blue text-white',
+                  )
+                }
+              >
+                Admin
+              </NavLink>
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  cn(
+                    'whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white transition-colors',
+                    isActive && 'bg-school-blue text-white',
+                  )
+                }
+              >
+                Settings
+              </NavLink>
+            </>
+          )}
         </div>
       </div>
     </header>

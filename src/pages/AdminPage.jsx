@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Check, X, Eye, Download, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useData } from '../contexts/DataContext'
+import { useAuth } from '../contexts/AuthContext'
 
 function Tabs({ value, onChange, options }) {
   return (
@@ -11,13 +12,44 @@ function Tabs({ value, onChange, options }) {
           onClick={() => onChange(opt.value)}
           className={
             value === opt.value
-              ? 'rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900'
-              : 'rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:text-white'
+              ? 'rounded-lg school-gradient px-4 py-2 text-sm font-semibold text-white transition-all'
+              : 'rounded-lg px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors'
           }
         >
           {opt.label}
+          {opt.count !== undefined && (
+            <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+              value === opt.value ? 'bg-white/20' : 'bg-slate-700'
+            }`}>
+              {opt.count}
+            </span>
+          )}
         </button>
       ))}
+    </div>
+  )
+}
+
+function StatCard({ icon: Icon, title, value, subtitle, color = 'red' }) {
+  const colorClasses = {
+    red: 'school-red bg-red-500/10 border-red-500/20',
+    blue: 'school-blue bg-blue-500/10 border-blue-500/20',
+    green: 'text-green-400 bg-green-500/10 border-green-500/20',
+    yellow: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+  }
+  
+  return (
+    <div className={`rounded-2xl border p-4 glass-effect ${colorClasses[color]}`}>
+      <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-slate-800/50 p-2">
+          <Icon className={`h-5 w-5 ${colorClasses[color].split(' ')[0]}`} />
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-slate-400">{title}</div>
+          <div className="mt-1 text-2xl font-bold text-white">{value}</div>
+          <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -32,18 +64,48 @@ function timeAgo(ts) {
   return `${days}d ago`
 }
 
+function ActionButton({ onClick, variant, children, disabled = false }) {
+  const variants = {
+    approve: 'bg-green-500/15 text-green-200 ring-1 ring-green-500/30 hover:bg-green-500/25',
+    reject: 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30 hover:bg-amber-500/25',
+    delete: 'bg-red-500/15 text-red-200 ring-1 ring-red-500/30 hover:bg-red-500/25',
+    view: 'bg-slate-500/15 text-slate-200 ring-1 ring-slate-500/30 hover:bg-slate-500/25'
+  }
+  
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all disabled:opacity-50 ${variants[variant]}`}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function AdminPage() {
   const { items, claims, setItemStatus, deleteItem, updateClaimStatus } = useData()
+  const { users } = useAuth()
   const [tab, setTab] = useState('pending')
+  const [selectedItems, setSelectedItems] = useState(new Set())
+
+  const stats = useMemo(() => {
+    const pending = items.filter(i => i.status === 'pending').length
+    const approved = items.filter(i => i.status === 'approved').length
+    const rejected = items.filter(i => i.status === 'rejected').length
+    const totalClaims = claims.length
+    
+    return { pending, approved, rejected, totalClaims }
+  }, [items, claims])
 
   const itemTabs = useMemo(
     () => [
-      { value: 'pending', label: 'Pending items' },
-      { value: 'approved', label: 'Approved items' },
-      { value: 'rejected', label: 'Rejected items' },
-      { value: 'claims', label: 'Claims / inquiries' },
+      { value: 'pending', label: 'Pending', count: stats.pending },
+      { value: 'approved', label: 'Approved', count: stats.approved },
+      { value: 'rejected', label: 'Rejected', count: stats.rejected },
+      { value: 'claims', label: 'Claims', count: stats.totalClaims },
     ],
-    [],
+    [stats],
   )
 
   const pendingItems = useMemo(
@@ -61,179 +123,319 @@ export default function AdminPage() {
 
   const claimsList = useMemo(() => claims.slice().sort((a, b) => b.createdAt - a.createdAt), [claims])
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="text-2xl font-semibold text-white">Admin Dashboard</div>
-        <div className="mt-1 text-sm text-slate-400">Review, approve, reject, or delete item postings.</div>
-      </div>
+  function handleBulkAction(action) {
+    selectedItems.forEach(itemId => {
+      if (action === 'delete') {
+        deleteItem(itemId)
+      } else {
+        setItemStatus(itemId, action)
+      }
+    })
+    setSelectedItems(new Set())
+  }
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={tab} onChange={setTab} options={itemTabs} />
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
-          Pending: <span className="text-slate-200">{pendingItems.length}</span>
+  function exportData() {
+    const data = {
+      items,
+      claims,
+      users: users.map(u => ({ ...u, password: '[REDACTED]' })),
+      exportedAt: new Date().toISOString()
+    }
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `lost-found-data-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="text-3xl font-bold text-white">Admin Dashboard</div>
+          <div className="mt-2 text-slate-400">
+            Manage item reports, review submissions, and handle user claims
+          </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <button
+            onClick={exportData}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 glass-effect px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-600 hover:bg-slate-800/60"
+          >
+            <Download className="h-4 w-4" />
+            Export Data
+          </button>
         </div>
       </div>
 
-      {tab === 'pending' ? (
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={Clock}
+          title="Pending Review"
+          value={stats.pending}
+          subtitle="Awaiting approval"
+          color="yellow"
+        />
+        <StatCard
+          icon={TrendingUp}
+          title="Approved Items"
+          value={stats.approved}
+          subtitle="Live listings"
+          color="green"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          title="Rejected Items"
+          value={stats.rejected}
+          subtitle="Not approved"
+          color="red"
+        />
+        <StatCard
+          icon={Users}
+          title="Total Claims"
+          value={stats.totalClaims}
+          subtitle="User requests"
+          color="blue"
+        />
+      </div>
+
+      {/* Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Tabs value={tab} onChange={setTab} options={itemTabs} />
+        
+        {selectedItems.size > 0 && tab !== 'claims' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400">{selectedItems.size} selected</span>
+            <ActionButton onClick={() => handleBulkAction('approved')} variant="approve">
+              <Check className="h-4 w-4" />
+              Approve
+            </ActionButton>
+            <ActionButton onClick={() => handleBulkAction('rejected')} variant="reject">
+              <X className="h-4 w-4" />
+              Reject
+            </ActionButton>
+            <ActionButton onClick={() => handleBulkAction('delete')} variant="delete">
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </ActionButton>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      {tab === 'pending' && (
         <ItemTable
-          title="Pending review"
+          title="Pending Review"
           items={pendingItems}
           onApprove={(id) => setItemStatus(id, 'approved')}
           onReject={(id) => setItemStatus(id, 'rejected')}
           onDelete={deleteItem}
+          selectedItems={selectedItems}
+          onSelectionChange={setSelectedItems}
         />
-      ) : null}
+      )}
 
-      {tab === 'approved' ? (
+      {tab === 'approved' && (
         <ItemTable
-          title="Approved"
+          title="Approved Items"
           items={approvedItems}
-          onApprove={null}
           onReject={(id) => setItemStatus(id, 'rejected')}
           onDelete={deleteItem}
+          selectedItems={selectedItems}
+          onSelectionChange={setSelectedItems}
         />
-      ) : null}
+      )}
 
-      {tab === 'rejected' ? (
+      {tab === 'rejected' && (
         <ItemTable
-          title="Rejected"
+          title="Rejected Items"
           items={rejectedItems}
           onApprove={(id) => setItemStatus(id, 'approved')}
-          onReject={null}
           onDelete={deleteItem}
+          selectedItems={selectedItems}
+          onSelectionChange={setSelectedItems}
         />
-      ) : null}
+      )}
 
-      {tab === 'claims' ? (
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6">
-          <div className="text-sm font-semibold text-white">Claims / inquiries</div>
-          <div className="mt-1 text-sm text-slate-400">Students requests to claim or ask for information.</div>
-
-          {claimsList.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-6 text-sm text-slate-300">
-              No claims submitted yet.
-            </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {claimsList.map((c) => (
-                <div
-                  key={c.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/30 p-4 text-sm text-slate-200"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Claim ID</div>
-                      <div className="font-mono text-xs text-slate-300">{c.id}</div>
-                    </div>
-                    <div className="text-xs text-slate-500">{timeAgo(c.createdAt)}</div>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Item</div>
-                      <div className="mt-1 text-slate-200">{items.find((i) => i.id === c.itemId)?.title || 'Unknown'}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500">Contact</div>
-                      <div className="mt-1 text-slate-200">{c.contact}</div>
-                    </div>
-                    <div className="md:col-span-2">
-                      <div className="text-xs font-semibold text-slate-500">Message</div>
-                      <div className="mt-1 text-slate-200">{c.message}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs text-slate-500">
-                      Status: <span className="text-slate-200">{c.status}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateClaimStatus(c.id, 'in_review')}
-                        className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900"
-                      >
-                        Mark in review
-                      </button>
-                      <button
-                        onClick={() => updateClaimStatus(c.id, 'resolved')}
-                        className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-900"
-                      >
-                        Mark resolved
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
+      {tab === 'claims' && (
+        <ClaimsTable claims={claimsList} items={items} updateClaimStatus={updateClaimStatus} />
+      )}
     </div>
   )
 }
 
-function ItemTable({ title, items, onApprove, onReject, onDelete }) {
+function ItemTable({ title, items, onApprove, onReject, onDelete, selectedItems, onSelectionChange }) {
+  function toggleSelection(itemId) {
+    const newSelection = new Set(selectedItems)
+    if (newSelection.has(itemId)) {
+      newSelection.delete(itemId)
+    } else {
+      newSelection.add(itemId)
+    }
+    onSelectionChange(newSelection)
+  }
+
+  function toggleAll() {
+    if (selectedItems.size === items.length) {
+      onSelectionChange(new Set())
+    } else {
+      onSelectionChange(new Set(items.map(i => i.id)))
+    }
+  }
+
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6">
-      <div className="text-sm font-semibold text-white">{title}</div>
+    <div className="rounded-3xl border border-slate-800 glass-effect p-6 animate-slide-up">
+      <div className="text-lg font-semibold text-white mb-4">{title}</div>
 
       {items.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-6 text-sm text-slate-300">
-          Nothing here yet.
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/30 p-8 text-center">
+          <div className="text-slate-400">No items in this category yet.</div>
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-xs font-semibold text-slate-500">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left text-sm">
+            <thead className="text-xs font-semibold text-slate-500 border-b border-slate-800">
               <tr>
-                <th className="py-2">Title</th>
-                <th className="py-2">Category</th>
-                <th className="py-2">Location</th>
-                <th className="py-2">Found date</th>
-                <th className="py-2">Status</th>
-                <th className="py-2">Actions</th>
+                <th className="py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.size === items.length && items.length > 0}
+                    onChange={toggleAll}
+                    className="rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500"
+                  />
+                </th>
+                <th className="py-3">Item</th>
+                <th className="py-3">Category</th>
+                <th className="py-3">Location</th>
+                <th className="py-3">Date Found</th>
+                <th className="py-3">Reported</th>
+                <th className="py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="text-slate-200">
               {items.map((it) => (
-                <tr key={it.id} className="border-t border-slate-800">
-                  <td className="py-3 pr-4 font-semibold text-white">{it.title}</td>
-                  <td className="py-3 pr-4">{it.category}</td>
-                  <td className="py-3 pr-4">{it.location}</td>
-                  <td className="py-3 pr-4">{it.dateFound || '—'}</td>
-                  <td className="py-3 pr-4 text-xs text-slate-400">{it.status}</td>
-                  <td className="py-3">
+                <tr key={it.id} className="border-t border-slate-800 hover:bg-slate-800/30 transition-colors">
+                  <td className="py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.has(it.id)}
+                      onChange={() => toggleSelection(it.id)}
+                      className="rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500"
+                    />
+                  </td>
+                  <td className="py-4 pr-4">
+                    <div className="flex items-center gap-3">
+                      {it.imageDataUrl && (
+                        <img src={it.imageDataUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                      )}
+                      <div>
+                        <div className="font-semibold text-white">{it.title}</div>
+                        <div className="text-xs text-slate-500 truncate max-w-xs">{it.description}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <span className="rounded-full bg-slate-800 px-2 py-1 text-xs">{it.category}</span>
+                  </td>
+                  <td className="py-4 pr-4 text-slate-300">{it.location}</td>
+                  <td className="py-4 pr-4 text-slate-400">{it.dateFound || '—'}</td>
+                  <td className="py-4 pr-4 text-xs text-slate-500">{timeAgo(it.createdAt)}</td>
+                  <td className="py-4">
                     <div className="flex flex-wrap gap-2">
-                      {onApprove ? (
-                        <button
-                          onClick={() => onApprove(it.id)}
-                          className="rounded-xl bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30"
-                        >
-                          Approve
-                        </button>
-                      ) : null}
-                      {onReject ? (
-                        <button
-                          onClick={() => onReject(it.id)}
-                          className="rounded-xl bg-amber-400/15 px-3 py-2 text-xs font-semibold text-amber-200 ring-1 ring-amber-500/30"
-                        >
-                          Reject
-                        </button>
-                      ) : null}
-                      <button
-                        onClick={() => onDelete(it.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30"
-                      >
+                      <ActionButton onClick={() => window.open(`/items/${it.id}`, '_blank')} variant="view">
+                        <Eye className="h-4 w-4" />
+                      </ActionButton>
+                      {onApprove && (
+                        <ActionButton onClick={() => onApprove(it.id)} variant="approve">
+                          <Check className="h-4 w-4" />
+                        </ActionButton>
+                      )}
+                      {onReject && (
+                        <ActionButton onClick={() => onReject(it.id)} variant="reject">
+                          <X className="h-4 w-4" />
+                        </ActionButton>
+                      )}
+                      <ActionButton onClick={() => onDelete(it.id)} variant="delete">
                         <Trash2 className="h-4 w-4" />
-                        Delete
-                      </button>
+                      </ActionButton>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ClaimsTable({ claims, items, updateClaimStatus }) {
+  return (
+    <div className="rounded-3xl border border-slate-800 glass-effect p-6 animate-slide-up">
+      <div className="text-lg font-semibold text-white mb-4">Claims & Inquiries</div>
+      <div className="text-sm text-slate-400 mb-6">Student requests to claim items or ask for information</div>
+
+      {claims.length === 0 ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/30 p-8 text-center">
+          <div className="text-slate-400">No claims submitted yet.</div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {claims.map((c) => {
+            const item = items.find(i => i.id === c.itemId)
+            return (
+              <div key={c.id} className="rounded-2xl border border-slate-800 bg-slate-950/30 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-4">
+                    {item?.imageDataUrl && (
+                      <img src={item.imageDataUrl} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                    )}
+                    <div>
+                      <div className="font-semibold text-white">{item?.title || 'Unknown Item'}</div>
+                      <div className="text-sm text-slate-400">Claim ID: {c.id}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      c.status === 'resolved' ? 'bg-green-500/20 text-green-300' :
+                      c.status === 'in_review' ? 'bg-amber-500/20 text-amber-300' :
+                      'bg-slate-500/20 text-slate-300'
+                    }`}>
+                      {c.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-xs text-slate-500">{timeAgo(c.createdAt)}</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mb-4">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500 mb-1">Contact</div>
+                    <div className="text-slate-200">{c.contact}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500 mb-1">Message</div>
+                    <div className="text-slate-200">{c.message}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <ActionButton onClick={() => updateClaimStatus(c.id, 'in_review')} variant="view">
+                    Mark In Review
+                  </ActionButton>
+                  <ActionButton onClick={() => updateClaimStatus(c.id, 'resolved')} variant="approve">
+                    Mark Resolved
+                  </ActionButton>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

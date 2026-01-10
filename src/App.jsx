@@ -13,6 +13,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import ReportPage from './pages/ReportPage'
 import ReviewsPage from './pages/ReviewsPage'
+import SettingsPage from './pages/SettingsPage'
 import SignupPage from './pages/SignupPage'
 import SourcesPage from './pages/SourcesPage'
 
@@ -44,6 +45,14 @@ export default function App() {
           element={
             <AdminRoute>
               <AdminPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <AdminRoute>
+              <SettingsPage />
             </AdminRoute>
           }
         />
