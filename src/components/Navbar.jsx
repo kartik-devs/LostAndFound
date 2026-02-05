@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { LogIn, LogOut, Shield, User, Settings, Sparkles } from 'lucide-react'
+import { LogIn, LogOut, Shield, User, Settings, Sparkles, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 function cn(...classes) {
@@ -13,6 +13,7 @@ export default function Navbar() {
   const navItems = useMemo(
     () => [
       { to: '/', label: 'Home' },
+      { to: '/dashboard', label: 'Dashboard' },
       { to: '/items', label: 'Found Items' },
       { to: '/report', label: 'Report Found' },
       { to: '/help', label: 'Help' },
@@ -67,6 +68,18 @@ export default function Navbar() {
           {/* Admin/Settings for logged in users */}
           {currentUser?.role === 'admin' && (
             <div className="hidden items-center gap-2 md:flex">
+              <NavLink
+                to="/analytics"
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-800/40 px-4 py-2.5 text-sm font-medium text-slate-200 transition-all hover:bg-slate-700/60 hover:border-slate-600',
+                    isActive && 'bg-school-blue border-school-blue text-white shadow-lg shadow-blue-900/25',
+                  )
+                }
+              >
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </NavLink>
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
@@ -158,6 +171,17 @@ export default function Navbar() {
             ))}
             {currentUser?.role === 'admin' && (
               <>
+                <NavLink
+                  to="/analytics"
+                  className={({ isActive }) =>
+                    cn(
+                      'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800 hover:text-white',
+                      isActive && 'bg-school-blue text-white shadow-md',
+                    )
+                  }
+                >
+                  Analytics
+                </NavLink>
                 <NavLink
                   to="/admin"
                   className={({ isActive }) =>
